@@ -5,17 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>After School Lessons</title>
   <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
   <div id="app">
     <h1>{{ title }}</h1>
+    <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
+
+    <div v-for="lesson in lessons" :key="lesson._id" class="lesson">
+      <i class="fa-solid" :class="lesson.icon"></i>
+      <h3>{{ lesson.subject }}</h3>
+      <p>Location: {{ lesson.location }}</p>
+      <p>Price: £{{ lesson.price }}</p>
+      <p>Spaces: {{ lesson.space }}</p>
+    </div>
   </div>
 
   <script>
     new Vue({
       el: "#app",
       data: {
-        title: "After School Lessons"
+        title: "After School Lessons",
+        baseUrl: "https://m01026435-after-school.onrender.com",
+        lessons: [],
+        loading: true
+      },
+      created() {
+        fetch(this.baseUrl + "/lessons")
+          .then(response => response.json())
+          .then(data => {
+            this.lessons = data;
+            this.loading = false;
+          })
+          .catch(error => {
+            console.log("Fetch failed:", error);
+            this.loading = false;
+          });
       }
     });
   </script>
