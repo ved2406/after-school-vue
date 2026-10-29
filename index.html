@@ -12,7 +12,25 @@
     <h1>{{ title }}</h1>
     <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
 
-    <div v-for="lesson in lessons" :key="lesson._id" class="lesson">
+    <div class="sort">
+      <label>Sort by:
+        <select v-model="sortBy">
+          <option value="subject">Subject</option>
+          <option value="location">Location</option>
+          <option value="price">Price</option>
+          <option value="space">Spaces</option>
+        </select>
+      </label>
+
+      <label>Order:
+        <select v-model="sortOrder">
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </label>
+    </div>
+
+    <div v-for="lesson in sortedLessons" :key="lesson._id" class="lesson">
       <i class="fa-solid" :class="lesson.icon"></i>
       <h3>{{ lesson.subject }}</h3>
       <p>Location: {{ lesson.location }}</p>
@@ -28,7 +46,22 @@
         title: "After School Lessons",
         baseUrl: "https://m01026435-after-school.onrender.com",
         lessons: [],
-        loading: true
+        loading: true,
+        sortBy: "subject",
+        sortOrder: "asc"
+      },
+      computed: {
+        sortedLessons() {
+          const key = this.sortBy;
+          const direction = this.sortOrder === "asc" ? 1 : -1;
+
+          return this.lessons.slice().sort((a, b) => {
+            if (typeof a[key] === "string") {
+              return a[key].localeCompare(b[key]) * direction;
+            }
+            return (a[key] - b[key]) * direction;
+          });
+        }
       },
       created() {
         fetch(this.baseUrl + "/lessons")
