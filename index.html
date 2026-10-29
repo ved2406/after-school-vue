@@ -10,6 +10,7 @@
 <body>
   <div id="app">
     <h1>{{ title }}</h1>
+    <p>Items in cart: {{ cart.length }}</p>
     <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
 
     <div class="sort">
@@ -36,6 +37,9 @@
       <p>Location: {{ lesson.location }}</p>
       <p>Price: £{{ lesson.price }}</p>
       <p>Spaces: {{ lesson.space }}</p>
+      <button v-on:click="addToCart(lesson)" :disabled="lesson.space <= 0">
+        Add to Cart
+      </button>
     </div>
   </div>
 
@@ -48,7 +52,8 @@
         lessons: [],
         loading: true,
         sortBy: "subject",
-        sortOrder: "asc"
+        sortOrder: "asc",
+        cart: []
       },
       computed: {
         sortedLessons() {
@@ -61,6 +66,14 @@
             }
             return (a[key] - b[key]) * direction;
           });
+        }
+      },
+      methods: {
+        addToCart(lesson) {
+          if (lesson.space > 0) {
+            lesson.space--;
+            this.cart.push(lesson._id);
+          }
         }
       },
       created() {
