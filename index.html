@@ -10,36 +10,60 @@
 <body>
   <div id="app">
     <h1>{{ title }}</h1>
-    <p>Items in cart: {{ cart.length }}</p>
-    <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
 
-    <div class="sort">
-      <label>Sort by:
-        <select v-model="sortBy">
-          <option value="subject">Subject</option>
-          <option value="location">Location</option>
-          <option value="price">Price</option>
-          <option value="space">Spaces</option>
-        </select>
-      </label>
+    <button v-on:click="toggleCart" :disabled="cart.length === 0">
+      <i class="fa-solid fa-cart-shopping"></i>
+      {{ showCart ? "Back to Lessons" : "Cart (" + cart.length + ")" }}
+    </button>
 
-      <label>Order:
-        <select v-model="sortOrder">
-          <option value="asc">Ascending</option>
-          <option value="desc">Descending</option>
-        </select>
-      </label>
+    <!-- LESSONS PAGE -->
+    <div v-if="!showCart">
+      <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
+
+      <div class="sort">
+        <label>Sort by:
+          <select v-model="sortBy">
+            <option value="subject">Subject</option>
+            <option value="location">Location</option>
+            <option value="price">Price</option>
+            <option value="space">Spaces</option>
+          </select>
+        </label>
+
+        <label>Order:
+          <select v-model="sortOrder">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </label>
+      </div>
+
+      <div v-for="lesson in sortedLessons" :key="lesson._id" class="lesson">
+        <i class="fa-solid" :class="lesson.icon"></i>
+        <h3>{{ lesson.subject }}</h3>
+        <p>Location: {{ lesson.location }}</p>
+        <p>Price: £{{ lesson.price }}</p>
+        <p>Spaces: {{ lesson.space }}</p>
+        <button v-on:click="addToCart(lesson)" :disabled="lesson.space <= 0">
+          Add to Cart
+        </button>
+      </div>
     </div>
 
-    <div v-for="lesson in sortedLessons" :key="lesson._id" class="lesson">
-      <i class="fa-solid" :class="lesson.icon"></i>
-      <h3>{{ lesson.subject }}</h3>
-      <p>Location: {{ lesson.location }}</p>
-      <p>Price: £{{ lesson.price }}</p>
-      <p>Spaces: {{ lesson.space }}</p>
-      <button v-on:click="addToCart(lesson)" :disabled="lesson.space <= 0">
-        Add to Cart
-      </button>
+    <!-- CART PAGE -->
+    <div v-else>
+      <h2>Your Cart</h2>
+
+      <div v-for="item in cartItems" :key="item.lesson._id" class="cart-item">
+        <i class="fa-solid" :class="item.lesson.icon"></i>
+        <strong>{{ item.lesson.subject }}</strong>
+        - {{ item.lesson.location }}
+        - £{{ item.lesson.price }} each
+        - Spaces booked: {{ item.quantity }}
+        <button v-on:click="removeFromCart(item.lesson)">Remove one</button>
+      </div>
+
+      <p><strong>Total: £{{ cartTotal }}</strong></p>
     </div>
   </div>
 
@@ -53,7 +77,8 @@
         loading: true,
         sortBy: "subject",
         sortOrder: "asc",
-        cart: []
+        cart: [],
+        showCart: false
       },
       computed: {
         sortedLessons() {
@@ -66,6 +91,24 @@
             }
             return (a[key] - b[key]) * direction;
           });
+        },
+        cartItems() {
+          const items = [];
+          this.cart.forEach(id => {
+            const existing = items.find(item => item.lesson._id === id);
+            if (existing) {
+              existing.quantity++;
+            } else {
+              const lesson = this.lessons.find(l => l._id === id);
+              items.push({ lesson: lesson, quantity: 1 });
+            }
+          });
+          return items;
+        },
+        cartTotal() {
+          return this.cartItems.reduce(
+            (sum, item) => sum + item.lesson.price * item.quantity, 0
+          );
         }
       },
       methods: {
@@ -74,6 +117,19 @@
             lesson.space--;
             this.cart.push(lesson._id);
           }
+        },
+        removeFromCart(lesson) {
+          const index = this.cart.indexOf(lesson._id);
+          if (index !== -1) {
+            this.cart.splice(index, 1);
+            lesson.space++;
+          }
+          if (this.cart.length === 0) {
+            this.showCart = false;
+          }
+        },
+        toggleCart() {
+          this.showCart = !this.showCart;
         }
       },
       created() {
