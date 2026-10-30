@@ -16,6 +16,8 @@
       {{ showCart ? "Back to Lessons" : "Cart (" + cart.length + ")" }}
     </button>
 
+    <p v-if="orderMessage" class="message"><strong>{{ orderMessage }}</strong></p>
+
     <!-- LESSONS PAGE -->
     <div v-if="!showCart">
       <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
@@ -64,6 +66,23 @@
       </div>
 
       <p><strong>Total: £{{ cartTotal }}</strong></p>
+
+      <h2>Checkout</h2>
+      <p>
+        <label>Name:
+          <input type="text" v-model="name" placeholder="Letters only">
+        </label>
+        <span v-if="name && !validName"> Name must be letters only</span>
+      </p>
+      <p>
+        <label>Phone:
+          <input type="text" v-model="phone" placeholder="Numbers only">
+        </label>
+        <span v-if="phone && !validPhone"> Phone must be numbers only</span>
+      </p>
+      <button v-on:click="checkout" :disabled="!validName || !validPhone">
+        Checkout
+      </button>
     </div>
   </div>
 
@@ -78,7 +97,10 @@
         sortBy: "subject",
         sortOrder: "asc",
         cart: [],
-        showCart: false
+        showCart: false,
+        name: "",
+        phone: "",
+        orderMessage: ""
       },
       computed: {
         sortedLessons() {
@@ -109,6 +131,12 @@
           return this.cartItems.reduce(
             (sum, item) => sum + item.lesson.price * item.quantity, 0
           );
+        },
+        validName() {
+          return /^[A-Za-z\s]+$/.test(this.name.trim());
+        },
+        validPhone() {
+          return /^[0-9]+$/.test(this.phone);
         }
       },
       methods: {
@@ -116,6 +144,7 @@
           if (lesson.space > 0) {
             lesson.space--;
             this.cart.push(lesson._id);
+            this.orderMessage = "";
           }
         },
         removeFromCart(lesson) {
@@ -130,6 +159,49 @@
         },
         toggleCart() {
           this.showCart = !this.showCart;
+        },
+        checkout() {
+          const items = this.cartItems.map(item => ({
+            id: item.lesson._id,
+            space: item.lesson.space
+          }));
+
+          const order = {
+            name: this.name.trim(),
+            phone: this.phone,
+            lessonIDs: this.cart.slice(),
+            spaces: this.cart.length
+          };
+
+          // POST: save the order
+          fetch(this.baseUrl + "/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(order)
+          })
+            .then(response => response.json())
+            .then(() => {
+              // PUT: update the remaining spaces of each lesson
+              const updates = items.map(item =>
+                fetch(this.baseUrl + "/lessons/" + item.id, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ space: item.space })
+                })
+              );
+              return Promise.all(updates);
+            })
+            .then(() => {
+              this.orderMessage = "Order submitted successfully! Thank you, " + order.name + ".";
+              this.cart = [];
+              this.name = "";
+              this.phone = "";
+              this.showCart = false;
+            })
+            .catch(error => {
+              console.log("Checkout failed:", error);
+              this.orderMessage = "Something went wrong. Please try again.";
+            });
         }
       },
       created() {
