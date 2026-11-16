@@ -29,6 +29,17 @@
         </label>
       </p>
 
+      <p>
+        <label>Teacher:
+          <select v-model="selectedTeacher" v-on:change="chooseTeacher">
+            <option value="">All teachers</option>
+            <option v-for="teacher in teachers" :key="teacher._id" :value="teacher._id">
+              {{ teacher.firstName }} {{ teacher.lastName }}
+            </option>
+          </select>
+        </label>
+      </p>
+
       <div class="sort">
         <label>Sort by:
           <select v-model="sortBy">
@@ -111,15 +122,21 @@
         phone: "",
         orderMessage: "",
         searchText: "",
-        matchedIds: null
+        matchedIds: null,
+        teachers: [],
+        selectedTeacher: "",
+        teacherLessonIds: null
       },
       computed: {
         visibleLessons() {
-          // null means no search yet, so show every lesson
-          if (this.matchedIds === null) {
-            return this.lessons;
-          }
-          return this.lessons.filter(l => this.matchedIds.includes(l._id));
+          // null means that filter is not in use, so it keeps every lesson
+          return this.lessons.filter(l => {
+            const matchesSearch =
+              this.matchedIds === null || this.matchedIds.includes(l._id);
+            const matchesTeacher =
+              this.teacherLessonIds === null || this.teacherLessonIds.includes(l._id);
+            return matchesSearch && matchesTeacher;
+          });
         },
         sortedLessons() {
           const key = this.sortBy;
@@ -172,6 +189,28 @@
             })
             .catch(error => {
               console.log("Search failed:", error);
+            });
+        },
+        chooseTeacher() {
+          const teacherId = this.selectedTeacher;
+
+          // "All teachers" turns the teacher filter off
+          if (teacherId === "") {
+            this.teacherLessonIds = null;
+            return;
+          }
+
+          // GET fetch to the back-end route for one teacher's lessons
+          fetch(this.baseUrl + "/teachers/" + teacherId + "/lessons")
+            .then(response => response.json())
+            .then(results => {
+              // ignore the answer if a different teacher was picked meanwhile
+              if (teacherId === this.selectedTeacher) {
+                this.teacherLessonIds = results.map(lesson => lesson._id);
+              }
+            })
+            .catch(error => {
+              console.log("Teacher fetch failed:", error);
             });
         },
         addToCart(lesson) {
@@ -239,6 +278,7 @@
         }
       },
       created() {
+        // GET all lessons
         fetch(this.baseUrl + "/lessons")
           .then(response => response.json())
           .then(data => {
@@ -248,6 +288,16 @@
           .catch(error => {
             console.log("Fetch failed:", error);
             this.loading = false;
+          });
+
+        // GET all teachers for the dropdown
+        fetch(this.baseUrl + "/teachers")
+          .then(response => response.json())
+          .then(data => {
+            this.teachers = data;
+          })
+          .catch(error => {
+            console.log("Teachers fetch failed:", error);
           });
       }
     });
