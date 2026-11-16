@@ -22,6 +22,13 @@
     <div v-if="!showCart">
       <p v-if="loading">Loading lessons... (the first load can take up to a minute)</p>
 
+      <p>
+        <label>Search:
+          <input type="text" v-model="searchText" v-on:input="search"
+                 placeholder="Subject, location, price or spaces">
+        </label>
+      </p>
+
       <div class="sort">
         <label>Sort by:
           <select v-model="sortBy">
@@ -39,6 +46,8 @@
           </select>
         </label>
       </div>
+
+      <p v-if="!loading && sortedLessons.length === 0">No lessons match your search.</p>
 
       <div v-for="lesson in sortedLessons" :key="lesson._id" class="lesson">
         <i class="fa-solid" :class="lesson.icon"></i>
@@ -100,14 +109,23 @@
         showCart: false,
         name: "",
         phone: "",
-        orderMessage: ""
+        orderMessage: "",
+        searchText: "",
+        matchedIds: null
       },
       computed: {
+        visibleLessons() {
+          // null means no search yet, so show every lesson
+          if (this.matchedIds === null) {
+            return this.lessons;
+          }
+          return this.lessons.filter(l => this.matchedIds.includes(l._id));
+        },
         sortedLessons() {
           const key = this.sortBy;
           const direction = this.sortOrder === "asc" ? 1 : -1;
 
-          return this.lessons.slice().sort((a, b) => {
+          return this.visibleLessons.slice().sort((a, b) => {
             if (typeof a[key] === "string") {
               return a[key].localeCompare(b[key]) * direction;
             }
@@ -140,6 +158,22 @@
         }
       },
       methods: {
+        search() {
+          const text = this.searchText;
+
+          // GET fetch to the back-end search route
+          fetch(this.baseUrl + "/search?q=" + encodeURIComponent(text))
+            .then(response => response.json())
+            .then(results => {
+              // ignore the answer if the box has changed since this request
+              if (text === this.searchText) {
+                this.matchedIds = results.map(lesson => lesson._id);
+              }
+            })
+            .catch(error => {
+              console.log("Search failed:", error);
+            });
+        },
         addToCart(lesson) {
           if (lesson.space > 0) {
             lesson.space--;
